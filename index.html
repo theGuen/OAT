@@ -1,0 +1,707 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Octal Absolute Time</title>
+<style>
+  :root {
+    --bg: #f6f5f1;
+    --surface: #ffffff;
+    --ink: #1c1d22;
+    --muted: #6b6d76;
+    --line: #d9d8d2;
+    --accent: #c2410c;
+    --hand: #1c1d22;
+    --night: #4f5bd5;
+    --morning: #e0a100;
+    --afternoon: #1f9d74;
+    --evening: #d0477a;
+    --wind: #8b5cf6;
+    --ritual: #16a34a;
+    --moon: #64748b;
+    --sun: #ea7a00;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #111216;
+      --surface: #1a1b21;
+      --ink: #ecebe6;
+      --muted: #9a9ca6;
+      --line: #2e3038;
+      --accent: #fb923c;
+      --hand: #ecebe6;
+      --night: #7c86f0;
+      --morning: #f2c23a;
+      --afternoon: #3cc796;
+      --evening: #ee6b9b;
+      --wind: #a78bfa;
+      --ritual: #4ade80;
+      --moon: #cbd5e1;
+      --sun: #ffa53a;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #111216;
+    --surface: #1a1b21;
+    --ink: #ecebe6;
+    --muted: #9a9ca6;
+    --line: #2e3038;
+    --accent: #fb923c;
+    --hand: #ecebe6;
+    --night: #7c86f0;
+    --morning: #f2c23a;
+    --afternoon: #3cc796;
+    --evening: #ee6b9b;
+    --wind: #a78bfa;
+    --ritual: #4ade80;
+    --moon: #cbd5e1;
+    --sun: #ffa53a;
+  }
+
+  * { box-sizing: border-box; }
+  html, body { margin: 0; }
+  body {
+    background: var(--bg);
+    color: var(--ink);
+    font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    min-height: 100vh;
+    display: flex;
+    justify-content: center;
+    padding: 32px 16px 48px;
+  }
+  main { width: 100%; max-width: 560px; display: flex; flex-direction: column; gap: 24px; }
+
+  header { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+  h1 { font-size: 15px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; margin: 0; }
+  .epoch { font-size: 13px; color: var(--muted); font-family: ui-monospace, "SF Mono", Menlo, monospace; }
+
+  .dial { width: 100%; aspect-ratio: 1; }
+  .dial svg { width: 100%; height: 100%; display: block; }
+  .mark { stroke: var(--muted); }
+  .mark.major { stroke: var(--ink); }
+  .label { fill: var(--ink); font-size: 15px; font-family: ui-monospace, "SF Mono", Menlo, monospace; text-anchor: middle; dominant-baseline: central; }
+  .face { fill: var(--surface); stroke: var(--line); }
+  .hand-tick { stroke: var(--hand); stroke-width: 7; stroke-linecap: round; }
+  .hand-moment { stroke: var(--accent); stroke-width: 3; stroke-linecap: round; }
+  .hub { fill: var(--accent); }
+  .progress-track { fill: none; stroke: var(--line); stroke-width: 3; }
+  .progress { fill: none; stroke: var(--accent); stroke-width: 3; stroke-linecap: round; }
+
+  .readout { text-align: center; }
+  .stamp {
+    font-family: ui-monospace, "SF Mono", Menlo, monospace;
+    font-size: clamp(30px, 9vw, 52px);
+    font-variant-numeric: tabular-nums;
+    letter-spacing: .02em;
+    white-space: nowrap;
+  }
+  .stamp .sep { color: var(--muted); padding: 0 .1em; }
+  .stamp .moment { color: var(--accent); }
+  .compact { margin-top: 10px; font-size: 13px; color: var(--muted); }
+  .compact span { font-family: ui-monospace, "SF Mono", Menlo, monospace; color: var(--ink); margin-left: 6px; }
+  .parts { display: grid; grid-template-columns: 1fr 1fr 1fr; margin-top: 6px; font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: .08em; }
+  .phase { margin-top: 14px; font-size: 14px; display: inline-flex; align-items: center; gap: 8px; }
+  .swatch { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
+
+  .card { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 16px; }
+  dl { display: grid; grid-template-columns: auto 1fr; gap: 8px 16px; margin: 0; font-size: 14px; }
+  dt { color: var(--muted); }
+  dd { margin: 0; font-family: ui-monospace, "SF Mono", Menlo, monospace; font-variant-numeric: tabular-nums; text-align: right; }
+  .note { font-size: 12px; color: var(--muted); margin: 12px 0 0; line-height: 1.5; }
+  h2 { font-size: 13px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; margin: 0 0 12px; }
+  .inputs { display: flex; gap: 16px; flex-wrap: wrap; margin-bottom: 14px; }
+  .inputs .hint { font-size: 12px; color: var(--muted); min-height: 1em; }
+  .inputs label { display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--muted); }
+  .inputs input {
+    font: inherit; font-size: 15px; color: var(--ink); background: var(--bg);
+    border: 1px solid var(--line); border-radius: 8px; padding: 6px 10px; width: 130px;
+    color-scheme: light dark;
+  }
+  .legend { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .legend th { text-align: left; font-weight: 500; color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: .06em; padding: 0 0 6px; }
+  .legend td { padding: 6px 0; border-top: 1px solid var(--line); font-variant-numeric: tabular-nums; }
+  .legend td:not(:first-child) { font-family: ui-monospace, "SF Mono", Menlo, monospace; }
+  .legend .swatch { margin-right: 8px; vertical-align: -1px; }
+  .legend tr.now td:first-child { font-weight: 600; }
+  .stripe-bg { fill: var(--morning); }
+  .stripe-fg { fill: var(--surface); }
+  .swatch.striped { background: repeating-linear-gradient(45deg, var(--morning) 0 3px, var(--surface) 3px 5px) !important; }
+  .legend .sub { display: block; font-size: 11px; color: var(--muted); font-family: ui-sans-serif, system-ui, sans-serif; }
+  .legend th, .legend td { padding-right: 10px; }
+  .legend th:last-child, .legend td:last-child { padding-right: 0; }
+  .location { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; margin: 16px 0 10px; font-size: 13px; color: var(--muted); }
+  .location button {
+    background: none; border: 1px solid var(--line); border-radius: 999px; color: var(--ink);
+    font: inherit; font-size: 12px; padding: 5px 12px; cursor: pointer;
+  }
+  .sun-dl { font-size: 13px; }
+  .sun-dot { display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin-right: 8px; border: 2px solid var(--sun); vertical-align: -1px; }
+  .sun-dot.rise { background: var(--sun); }
+  .sun-arc { fill: none; stroke: var(--sun); stroke-width: 3; stroke-linecap: round; }
+  .sun-marker { stroke: var(--sun); stroke-width: 3; }
+  .sun-arrow { fill: none; stroke: var(--sun); stroke-width: 3; stroke-linecap: round; }
+  .sun-arrow-head { fill: var(--sun); }
+  .ritual .sun-arrow { stroke: var(--ritual); }
+  .ritual .sun-arrow-head { fill: var(--ritual); }
+  #sunTurn.ritual { color: var(--ritual); font-weight: 600; }
+  [hidden] { display: none !important; }
+  .check { display: flex; align-items: center; gap: 8px; margin: 14px 0 10px; font-size: 13px; color: var(--muted); cursor: pointer; }
+  .moon-arc { fill: none; stroke: var(--moon); stroke-width: 2; stroke-dasharray: 4 4; }
+  .moon-dot { fill: var(--surface); stroke: var(--moon); stroke-width: 2; }
+  .moon-dot.rise { fill: var(--moon); }
+  .moon-dark { fill: var(--bg); stroke: var(--moon); stroke-width: 1.5; }
+  .moon-lit { fill: var(--moon); }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <h1>Octal Absolute Time</h1>
+    <span class="epoch">Epoch J2000.0</span>
+  </header>
+
+  <div class="dial">
+    <svg id="dial" viewBox="-264 -264 528 528" aria-label="Octal clock face">
+      <defs>
+        <pattern id="wakeStripes" patternUnits="userSpaceOnUse" width="8" height="8" patternTransform="rotate(45)">
+          <rect width="8" height="8" class="stripe-bg"/>
+          <rect width="3" height="8" class="stripe-fg"/>
+        </pattern>
+      </defs>
+      <g id="circadian"></g>
+      <g id="sun"></g>
+      <g id="moon"></g>
+      <circle class="face" r="196"/>
+      <g id="phases"></g>
+      <g id="marks"></g>
+      <circle class="progress-track" r="118"/>
+      <path id="progress" class="progress" d=""/>
+      <line id="handTick" class="hand-tick" x1="0" y1="14" x2="0" y2="-96"/>
+      <line id="handMoment" class="hand-moment" x1="0" y1="22" x2="0" y2="-150"/>
+      <circle class="hub" r="6"/>
+    </svg>
+  </div>
+
+  <section class="readout" aria-live="off">
+    <div class="stamp"><span id="day">0</span><span class="sep">·</span><span id="tick">00</span><span class="sep">·</span><span id="moment" class="moment">00</span></div>
+    <div class="parts"><span>Day</span><span>Tick</span><span>Moment</span></div>
+    <div class="compact" title="Days since J2000.0 as one octal number">machine form <span id="compact"></span></div>
+    <div class="phase"><span id="phaseSwatch" class="swatch"></span><span id="phaseName"></span></div>
+  </section>
+
+  <section class="card">
+    <h2>Your body clock</h2>
+    <div class="inputs">
+      <label>Bedtime (tick · moment) <input id="bedtime" type="text" inputmode="numeric" maxlength="5" value="25·00"><span class="hint" id="bedHint"></span></label>
+    </div>
+    <table class="legend">
+      <thead><tr><th>Phase</th><th>OAT</th><th>Length</th><th>Legacy local</th></tr></thead>
+      <tbody id="legend"></tbody>
+    </table>
+    <div class="location">
+      <span>Location: <span id="locName"></span></span>
+      <button type="button" id="locBtn">Use my location</button>
+    </div>
+    <dl class="sun-dl">
+      <dt><span class="sun-dot rise"></span>Sunrise</dt><dd id="sunrise"></dd>
+      <dt><span class="sun-dot set"></span>Sunset</dt><dd id="sunset"></dd>
+      <dt>Daylight</dt><dd id="daylight"></dd>
+      <dt>Change per day</dt><dd id="sunTrend"></dd>
+      <dt>Next turning point</dt><dd id="sunTurn"></dd>
+    </dl>
+    <label class="check"><input type="checkbox" id="moonToggle"> Show moon ring</label>
+    <dl class="sun-dl" id="moonDl" hidden>
+      <dt>Moon</dt><dd id="moonPhase"></dd>
+      <dt>Moonrise</dt><dd id="moonrise"></dd>
+      <dt>Moonset</dt><dd id="moonset"></dd>
+      <dt>Next phases</dt><dd id="moonNext"></dd>
+    </dl>
+    <p class="note">
+      The thin outermost arc is daylight at your location, from sunrise (●) to sunset (○).
+      The thick ring is your daily routine placed on the absolute OAT day: a fixed sleep window of 27₈ ticks from your bedtime,
+      then 16₈ ticks post-wake focus, 14₈ high performance, 7₈ pre-wind down, and wind down until bedtime.
+      Your phases always fall on the same ticks, whatever the legacy clock says.
+    </p>
+  </section>
+
+  <section class="card">
+    <dl>
+      <dt>Legacy (Gregorian, UTC)</dt><dd id="conv"></dd>
+      <dt>Legacy local</dt><dd id="convLocal"></dd>
+      <dt>Day (decimal)</dt><dd id="dayDec"></dd>
+      <dt>Tick · moment (decimal)</dt><dd id="tmDec"></dd>
+      <dt>Next tick in</dt><dd id="nextTick"></dd>
+    </dl>
+    <p class="note">
+      All OAT numbers are octal. 1 day = 100₈ ticks (64), 1 tick = 100₈ moments (64).
+      1 tick = 22.5 min · 1 moment ≈ 21.1 s · 20₈ ticks (16) = 6 h.
+      Day 0 · 00 · 00 = J2000.0 (2000-01-01 12:00, taken as UTC), so every day rolls over at 12:00 UTC.
+      There's no local time: the same OAT value is shown everywhere on Earth.
+      The grey arcs just divide the dial into quarters of 20₈ ticks (6 h). The orange ring shows progress through the current moment.
+    </p>
+  </section>
+</main>
+
+<script>
+(() => {
+  const NS = "http://www.w3.org/2000/svg";
+  const DAY_MS = 86400000;
+  // J2000.0 = 2000-01-01 12:00 TT; approximated as 12:00 UTC (TT−UTC ≈ 64 s, leap seconds ignored)
+  const EPOCH = Date.UTC(2000, 0, 1, 12);
+  const PHASES = [
+    { name: "Quarter 1", color: "--ink" },
+    { name: "Quarter 2", color: "--muted" },
+    { name: "Quarter 3", color: "--ink" },
+    { name: "Quarter 4", color: "--muted" },
+  ];
+  const CIRCADIAN = [
+    { name: "Sleep",            color: "--night" },
+    { name: "Post-wake focus",  color: "--morning",   ticks: 0o16 },
+    { name: "High performance", color: "--afternoon", ticks: 0o14 },
+    { name: "Pre-wind down",    color: "--evening",   ticks: 0o7 },
+    { name: "Wind down",        color: "--wind" },
+  ];
+
+  const oct = (n, w = 2) => n.toString(8).padStart(w, "0");
+  const ang = f => f * 2 * Math.PI - Math.PI / 2;
+  const pt = (f, r) => [r * Math.cos(ang(f)), r * Math.sin(ang(f))];
+  const arc = (f0, f1, r) => {
+    const [x0, y0] = pt(f0, r), [x1, y1] = pt(f1, r);
+    const large = f1 - f0 > 0.5 ? 1 : 0;
+    return `M${x0} ${y0}A${r} ${r} 0 ${large} 1 ${x1} ${y1}`;
+  };
+  const el = (tag, attrs, parent) => {
+    const e = document.createElementNS(NS, tag);
+    for (const k in attrs) e.setAttribute(k, attrs[k]);
+    parent.appendChild(e);
+    return e;
+  };
+
+  // Circadian quadrants: 4 blocks of 20₈ ticks
+  const phasesG = document.getElementById("phases");
+  PHASES.forEach((p, i) => {
+    el("path", {
+      d: arc(i / 4 + 0.004, (i + 1) / 4 - 0.004, 186),
+      fill: "none", stroke: `var(${p.color})`, "stroke-width": 4, "stroke-linecap": "round",
+    }, phasesG);
+  });
+
+  // 64 marks, labelled every 10₈
+  const marksG = document.getElementById("marks");
+  for (let i = 0; i < 64; i++) {
+    const f = i / 64, major = i % 8 === 0;
+    const [x0, y0] = pt(f, major ? 160 : 168);
+    const [x1, y1] = pt(f, 176);
+    el("line", { x1: x0, y1: y0, x2: x1, y2: y1, class: major ? "mark major" : "mark", "stroke-width": major ? 2.5 : 1 }, marksG);
+    if (major) {
+      const [lx, ly] = pt(f, 140);
+      el("text", { x: lx, y: ly, class: "label" }, marksG).textContent = oct(i);
+    }
+  }
+
+  const $ = id => document.getElementById(id);
+  const handTick = $("handTick"), handMoment = $("handMoment"), progress = $("progress");
+
+  const pad = n => String(n).padStart(2, "0");
+  const wrap = f => ((f % 1) + 1) % 1;
+
+  // Circadian ring: sleep from bedtime, then the waking phases
+  const bedInput = $("bedtime");
+  const SLEEP_TICKS = 0o27;   // fixed sleep window: 27₈ ticks = 8 h 38 min in bed
+  const WAKE_TICKS = 4;       // one sleep cycle ≈ 90 min = 4 ticks
+  try {
+    const saved = JSON.parse(localStorage.getItem("oat-circadian") || "null");
+    if (saved) { if (saved.bedOat) bedInput.value = saved.bedOat; }
+  } catch (e) {}
+
+  let segments = [];
+  // Accepts "25", "25·10", "25.10" or "25:10" (octal tick, optional octal moment)
+  const parseOat = str => {
+    const m = /^\s*([0-7]{1,2})(?:\s*[·.:, ]\s*([0-7]{1,2}))?\s*$/.exec(str || "");
+    return m ? (parseInt(m[1], 8) * 64 + (m[2] ? parseInt(m[2], 8) : 0)) / 4096 : null;
+  };
+  const fracToLocal = f => {
+    const min = Math.round(wrap(f + 0.5 - new Date().getTimezoneOffset() / 1440) * 1440) % 1440;
+    return `${pad(Math.floor(min / 60))}:${pad(min % 60)}`;
+  };
+  const fracToOat = f => {
+    const m = Math.round(wrap(f) * 4096) % 4096;
+    return `${oct(m >> 6)}·${oct(m & 63)}`;
+  };
+  // Phase boundaries: drop "·00" on whole ticks
+  const fracToOatShort = f => fracToOat(f).replace(/·00$/, "");
+  const lenTicks = len => `${fracToOatShort(len)} ticks`;
+  const lenHours = len => {
+    const mins = Math.round(len * 1440);
+    return `${Math.floor(mins / 60)} h ${pad(mins % 60)} min`;
+  };
+
+  function drawCircadian() {
+    const parsedBed = parseOat(bedInput.value);
+    const start = parsedBed ?? 21 / 64;   // default 25₈·00
+    $("bedHint").textContent = parsedBed === null ? "use tick·moment, e.g. 25·00" : `= ${fracToLocal(start)} local`;
+    // Sleep from bedtime, then fixed waking phases; wind down takes the rest of the day
+    const sleep = SLEEP_TICKS / 64;
+    const fixed = CIRCADIAN.slice(1, -1).map(c => c.ticks / 64);
+    const lens = [sleep, ...fixed, 1 - sleep - fixed.reduce((a, b) => a + b, 0)];
+    let f = start;
+    segments = CIRCADIAN.map((c, i) => {
+      const seg = { ...c, from: f, len: lens[i] };
+      f += lens[i];
+      return seg;
+    });
+
+    const g = $("circadian");
+    g.replaceChildren();
+    segments.forEach(s => el("path", {
+      // Flat ends with a hairline gap, so each boundary sits exactly on its tick
+      d: arc(s.from + 0.001, s.from + s.len - 0.001, 208),
+      fill: "none", stroke: `var(${s.color})`, "stroke-width": 12, "stroke-linecap": "butt",
+    }, g));
+
+    // Wake window: the first sleep cycle (4 ticks ≈ 90 min) of post-wake focus, striped
+    const wake = { from: segments[1].from, len: WAKE_TICKS / 64 };
+    el("path", {
+      d: arc(wake.from + 0.001, wake.from + wake.len - 0.001, 208),
+      fill: "none", stroke: "url(#wakeStripes)", "stroke-width": 12, "stroke-linecap": "butt",
+    }, g);
+
+    $("legend").replaceChildren(...segments.map(s => {
+      const tr = document.createElement("tr");
+      const wakeNote = s === segments[1]
+        ? `<span class="sub"><span class="swatch striped"></span>wake window ${fracToOatShort(wake.from)} – ${fracToOatShort(wake.from + wake.len)}</span>` : "";
+      tr.innerHTML = `<td><span class="swatch" style="background:var(${s.color})"></span>${s.name}${wakeNote}</td>` +
+        `<td>${fracToOatShort(s.from)} – ${fracToOatShort(s.from + s.len)}</td>` +
+        `<td>${lenTicks(s.len)}<span class="sub">${lenHours(s.len)}</span></td>` +
+        `<td>${fracToLocal(s.from)} – ${fracToLocal(s.from + s.len)}</td>`;
+      return tr;
+    }));
+
+    try { localStorage.setItem("oat-circadian", JSON.stringify({ bedOat: bedInput.value })); } catch (e) {}
+  }
+  bedInput.addEventListener("input", drawCircadian);
+  drawCircadian();
+
+  // Sunrise/sunset via the NOAA sunrise equation. Its time variable is days since
+  // J2000.0, which is exactly the OAT day count, so wrap(x) gives the dial position.
+  let loc = { name: "Hamburg", lat: 53.55, lon: 9.99 };
+  try {
+    const saved = JSON.parse(localStorage.getItem("oat-location") || "null");
+    if (saved) loc = saved;
+  } catch (e) {}
+
+  function sunEvents(lat, lon, n) {
+    const rad = Math.PI / 180, sin = d => Math.sin(d * rad);
+    const js = n - lon / 360;                                   // mean solar noon
+    const M = (357.5291 + 0.98560028 * js) % 360;               // mean anomaly
+    const C = 1.9148 * sin(M) + 0.02 * sin(2 * M) + 0.0003 * sin(3 * M);
+    const L = (M + C + 282.9372) % 360;                         // ecliptic longitude
+    const transit = js + 0.0053 * sin(M) - 0.0069 * sin(2 * L);
+    const sinDec = sin(L) * sin(23.4397);
+    const cosDec = Math.cos(Math.asin(sinDec));
+    const cosW = (sin(-0.833) - sin(lat) * sinDec) / (Math.cos(lat * rad) * cosDec);
+    if (cosW > 1) return { polar: "night", L };
+    if (cosW < -1) return { polar: "day", L };
+    const w = Math.acos(cosW) / rad / 360;
+    return { rise: transit - w, set: transit + w, L };
+  }
+
+  // Equinoxes and solstices: the Sun's ecliptic longitude crosses a multiple of 90°.
+  // Returns the first crossing within days n+from … n+to−1 as { k, deg }, or null.
+  function turningPoint(n, from, to) {
+    let prev = sunEvents(0, 0, n + from).L, acc = 0;
+    for (let k = from + 1; k <= to; k++) {
+      const L = sunEvents(0, 0, n + k).L;
+      const step = ((L - prev) % 360 + 360) % 360;
+      if (Math.floor((prev + step) / 90) !== Math.floor(prev / 90)) {
+        // Crossing between noon of day k−1 and noon of day k lies within OAT day k−1
+        return { k: k - 1, deg: (Math.floor((prev + step) / 90) * 90) % 360 };
+      }
+      prev = L;
+    }
+    return null;
+  }
+  const turningName = (deg, lat) => {
+    if (deg % 180 === 0) return "Equinox (equal day and night)";
+    return (deg === 90) === (lat >= 0) ? "Solstice (longest day)" : "Solstice (shortest day)";
+  };
+
+  // Tangential arrow on the daylight ring: clockwise for dir > 0, length in day fractions
+  function sunArrow(g, f, dir, size) {
+    const r = 236, f1 = f + dir * size;
+    el("path", { d: dir > 0 ? arc(f, f1, r) : arc(f1, f, r), class: "sun-arrow" }, g);
+    const a = ang(f1), [tx, ty] = pt(f1, r);
+    const tan = [-Math.sin(a) * dir, Math.cos(a) * dir], nor = [Math.cos(a), Math.sin(a)];
+    const bx = tx - tan[0] * 9, by = ty - tan[1] * 9;
+    el("path", {
+      d: `M${tx + tan[0] * 2} ${ty + tan[1] * 2}L${bx + nor[0] * 5} ${by + nor[1] * 5}L${bx - nor[0] * 5} ${by - nor[1] * 5}Z`,
+      class: "sun-arrow-head",
+    }, g);
+  }
+
+  const oatToLocal = x => {
+    const d = new Date(EPOCH + x * DAY_MS);
+    return `${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  };
+
+  function drawSun() {
+    $("locName").textContent = `${loc.name} (${loc.lat.toFixed(2)}° ${loc.lat >= 0 ? "N" : "S"}, ` +
+      `${Math.abs(loc.lon).toFixed(2)}° ${loc.lon >= 0 ? "E" : "W"})`;
+    const n = Math.round((Date.now() - EPOCH) / DAY_MS + loc.lon / 360);
+    const s = sunEvents(loc.lat, loc.lon, n);
+    const g = $("sun");
+    g.replaceChildren();
+
+    if (s.polar) {
+      if (s.polar === "day") el("circle", { r: 224, class: "sun-arc" }, g);
+      const txt = s.polar === "day" ? "Polar day" : "Polar night";
+      $("sunrise").textContent = $("sunset").textContent = "—";
+      $("daylight").textContent = txt;
+      $("sunTrend").textContent = "—";
+      return;
+    }
+
+    el("path", { d: arc(s.rise, s.set, 224), class: "sun-arc" }, g);
+    const [rx, ry] = pt(s.rise, 224), [sx, sy] = pt(s.set, 224);
+    el("circle", { cx: rx, cy: ry, r: 6, class: "sun-marker", fill: "var(--sun)" }, g);
+    el("circle", { cx: sx, cy: sy, r: 6, class: "sun-marker", fill: "var(--surface)" }, g);
+
+    // Arrows point outward while that end of the day is growing, inward while it shrinks.
+    // Their length follows the felt shift per day; green within 8 days of an equinox or solstice.
+    const next = sunEvents(loc.lat, loc.lon, n + 1);
+    const near = turningPoint(n, -8, 9);
+    const arrows = el("g", near ? { class: "ritual" } : {}, g);
+    if (!next.polar) {
+      [[s.rise, next.rise - 1 - s.rise], [s.set, next.set - 1 - s.set]].forEach(([f, delta]) => {
+        const minPerDay = Math.abs(delta) * 1440;
+        const ticks = Math.min(4, 0.6 + 0.8 * minPerDay);
+        sunArrow(arrows, f, Math.sign(delta) || 1, ticks / 64);
+      });
+      const dLen = (next.set - next.rise) - (s.set - s.rise);
+      const secs = Math.round(dLen * 86400), mom = Math.round(dLen * 4096);
+      $("sunTrend").textContent = `${mom < 0 ? "−" : "+"}${oct(Math.abs(mom), 1)} moments  ` +
+        `(${secs < 0 ? "−" : "+"}${Math.floor(Math.abs(secs) / 60)} min ${pad(Math.abs(secs) % 60)} s)`;
+    }
+
+    const turn = near && near.k >= 0 ? near : turningPoint(n, 0, 120);
+    const show = near || turn;
+    if (show) {
+      const when = show.k === 0 ? "today" : show.k > 0 ? `in ${oct(show.k, 1)}₈ days` : `${oct(-show.k, 1)}₈ days ago`;
+      $("sunTurn").textContent = `${turningName(show.deg, loc.lat)} · Day ${(n + show.k).toString(8)} · ${when}`;
+    }
+    $("sunTurn").classList.toggle("ritual", !!near);
+
+    const len = s.set - s.rise, m = Math.round(len * 4096), mins = Math.round(len * 1440);
+    $("sunrise").textContent = `${fracToOat(s.rise)}  (${oatToLocal(s.rise)} local)`;
+    $("sunset").textContent = `${fracToOat(s.set)}  (${oatToLocal(s.set)} local)`;
+    $("daylight").textContent = `${oct(m >> 6)}·${oct(m & 63)} ticks  (${Math.floor(mins / 60)} h ${pad(mins % 60)} min)`;
+  }
+
+  $("locBtn").addEventListener("click", () => {
+    if (!navigator.geolocation) { $("locBtn").textContent = "Location unavailable"; return; }
+    $("locBtn").textContent = "Locating…";
+    navigator.geolocation.getCurrentPosition(p => {
+      loc = { name: "Your location", lat: p.coords.latitude, lon: p.coords.longitude };
+      try { localStorage.setItem("oat-location", JSON.stringify(loc)); } catch (e) {}
+      $("locBtn").textContent = "Use my location";
+      drawSun();
+      drawMoon();
+    }, () => { $("locBtn").textContent = "Location denied"; });
+  });
+  drawSun();
+  setInterval(drawSun, 60000);
+
+  // ---- Moon: optional outermost ring ----
+  // Positions use a low-precision lunar theory (≈0.3°, moonrise within a few minutes);
+  // principal phases use Meeus, Astronomical Algorithms ch. 49 (within a few minutes).
+  // Both work in days since J2000.0, i.e. directly in OAT days.
+  const DELTA_T = 69.2 / 86400;                                  // TT − UTC, in days
+  const R = Math.PI / 180, sinD = d => Math.sin(d * R), cosD = d => Math.cos(d * R);
+  const norm = d => ((d % 360) + 360) % 360;
+
+  function moonState(t) {
+    const D = 297.8502 + 12.19074912 * t, Ms = 357.5291 + 0.98560028 * t;
+    const M = 134.9634 + 13.06499295 * t, F = 93.2721 + 13.22935024 * t;
+    const L0 = 218.3165 + 13.17639648 * t;
+    const lam = L0 + 6.289 * sinD(M) + 1.274 * sinD(2 * D - M) + 0.658 * sinD(2 * D)
+      + 0.214 * sinD(2 * M) - 0.186 * sinD(Ms) - 0.114 * sinD(2 * F);
+    const beta = 5.128 * sinD(F) + 0.281 * sinD(M + F) + 0.278 * sinD(M - F) + 0.173 * sinD(2 * D - F);
+    const eps = 23.4397;
+    const ra = Math.atan2(sinD(lam) * cosD(eps) - Math.tan(beta * R) * sinD(eps), cosD(lam)) / R;
+    const dec = Math.asin(sinD(beta) * cosD(eps) + cosD(beta) * sinD(eps) * sinD(lam)) / R;
+    const C = 1.9148 * sinD(Ms) + 0.02 * sinD(2 * Ms);
+    const lamSun = Ms + C + 282.9372;
+    return { ra, dec, elong: norm(lam - lamSun) };
+  }
+
+  function moonAltitude(t, lat, lon) {
+    const m = moonState(t);
+    const lst = 280.46061837 + 360.98564736629 * t + lon;
+    const ha = lst - m.ra;
+    return Math.asin(sinD(lat) * sinD(m.dec) + cosD(lat) * cosD(m.dec) * cosD(ha)) / R;
+  }
+
+  // Above-horizon intervals within [t0, t0 + 1), as day fractions with rise/set flags
+  function moonIntervals(t0, lat, lon) {
+    const H0 = 0.125, steps = 288, out = [];
+    let prev = moonAltitude(t0, lat, lon) - H0, start = prev > 0 ? { f: 0, rise: false } : null;
+    let best = { f: 0, h: -90 };
+    for (let i = 1; i <= steps; i++) {
+      const f = i / steps, h = moonAltitude(t0 + f, lat, lon) - H0;
+      if (h > best.h) best = { f, h };
+      if ((prev <= 0) !== (h <= 0)) {
+        const fx = f - (1 / steps) * h / (h - prev);
+        if (h > 0) start = { f: fx, rise: true };
+        else if (start) { out.push({ from: start.f, to: fx, rise: start.rise, set: true }); start = null; }
+      }
+      prev = h;
+    }
+    if (start) out.push({ from: start.f, to: 1, rise: start.rise, set: false });
+    return { intervals: out, transit: best.h > 0 ? best.f : null };
+  }
+
+  const PHASE_NAMES = ["New moon", "Waxing crescent", "First quarter", "Waxing gibbous",
+    "Full moon", "Waning gibbous", "Last quarter", "Waning crescent"];
+
+  // Meeus ch. 49: q = 0 new, .25 first quarter, .5 full, .75 last quarter; returns OAT days (UTC)
+  function principalPhase(k, q) {
+    k += q;
+    const T = k / 1236.85, E = 1 - 0.002516 * T - 0.0000074 * T * T;
+    const jde = 2451550.09766 + 29.530588861 * k + 0.00015437 * T * T;
+    const M = 2.5534 + 29.1053567 * k, Mp = 201.5643 + 385.81693528 * k;
+    const F = 160.7108 + 390.67050284 * k, Om = 124.7746 - 1.56375588 * k;
+    const s = sinD;
+    let c;
+    if (q === 0 || q === 0.5) {
+      const a = q === 0 ? [-0.40720, 0.17241, 0.01608, 0.01039, 0.00739, -0.00514, 0.00208]
+                        : [-0.40614, 0.17302, 0.01614, 0.01043, 0.00734, -0.00515, 0.00209];
+      c = a[0] * s(Mp) + a[1] * E * s(M) + a[2] * s(2 * Mp) + a[3] * s(2 * F) + a[4] * E * s(Mp - M)
+        + a[5] * E * s(Mp + M) + a[6] * E * E * s(2 * M) - 0.00111 * s(Mp - 2 * F) - 0.00057 * s(Mp + 2 * F)
+        + 0.00056 * E * s(2 * Mp + M) - 0.00042 * s(3 * Mp) + 0.00042 * E * s(M + 2 * F)
+        + 0.00038 * E * s(M - 2 * F) - 0.00024 * E * s(2 * Mp - M) - 0.00017 * s(Om);
+    } else {
+      c = -0.62801 * s(Mp) + 0.17172 * E * s(M) - 0.01183 * E * s(Mp + M) + 0.00862 * s(2 * Mp)
+        + 0.00804 * s(2 * F) + 0.00454 * E * s(Mp - M) + 0.00204 * E * E * s(2 * M) - 0.0018 * s(Mp - 2 * F)
+        - 0.0007 * s(Mp + 2 * F) - 0.0004 * s(3 * Mp) - 0.00034 * E * s(2 * Mp - M) + 0.00032 * E * s(M + 2 * F)
+        + 0.00032 * E * s(M - 2 * F) - 0.00028 * E * E * s(Mp + 2 * M) + 0.00027 * E * s(2 * Mp + M) - 0.00017 * s(Om);
+      const W = 0.00306 - 0.00038 * E * cosD(M) + 0.00026 * cosD(Mp) - 0.00002 * cosD(Mp - M)
+        + 0.00002 * cosD(Mp + M) + 0.00002 * cosD(2 * F);
+      c += q === 0.25 ? W : -W;
+    }
+    return jde + c - 2451545 - DELTA_T;
+  }
+
+  function upcomingPhases(t, count) {
+    const k0 = Math.floor(t / 29.530588861) - 1, list = [];
+    for (let k = k0; list.length < count && k < k0 + 4; k++) {
+      for (const q of [0, 0.25, 0.5, 0.75]) {
+        const at = principalPhase(k, q);
+        if (at > t && list.length < count) list.push({ at, name: PHASE_NAMES[q * 8] });
+      }
+    }
+    return list;
+  }
+
+  // Small phase disc: lit side right while waxing (northern view), terminator as an ellipse
+  function moonGlyph(g, x, y, elong, south) {
+    const r = 8, lit = (1 - cosD(elong)) / 2;
+    el("circle", { cx: x, cy: y, r, class: "moon-dark" }, g);
+    let right = elong < 180;
+    if (south) right = !right;
+    const rx = r * Math.abs(1 - 2 * lit), sweepOuter = right ? 1 : 0;
+    const sweepTerm = (lit > 0.5) === right ? 1 : 0;
+    el("path", {
+      d: `M${x} ${y - r}A${r} ${r} 0 0 ${sweepOuter} ${x} ${y + r}A${rx} ${r} 0 0 ${sweepTerm} ${x} ${y - r}Z`,
+      class: "moon-lit",
+    }, g);
+  }
+
+  const moonToggle = $("moonToggle");
+  try { moonToggle.checked = localStorage.getItem("oat-moon") === "on"; } catch (e) {}
+
+  function drawMoon() {
+    const g = $("moon");
+    g.replaceChildren();
+    $("moonDl").hidden = !moonToggle.checked;
+    if (!moonToggle.checked) return;
+
+    const t = (Date.now() - EPOCH) / DAY_MS, day = Math.floor(t);
+    const m = moonState(t + DELTA_T);
+    const lit = Math.round((1 - cosD(m.elong)) / 2 * 100);
+    $("moonPhase").textContent = `${PHASE_NAMES[Math.round(m.elong / 45) % 8]} · ${lit}% lit`;
+
+    const { intervals, transit } = moonIntervals(day + DELTA_T, loc.lat, loc.lon);
+    const rises = [], sets = [];
+    intervals.forEach(iv => {
+      el("path", { d: arc(iv.from, Math.max(iv.to, iv.from + 0.001), 254), class: "moon-arc" }, g);
+      if (iv.rise) { rises.push(iv.from); const [x, y] = pt(iv.from, 254); el("circle", { cx: x, cy: y, r: 4, class: "moon-dot rise" }, g); }
+      if (iv.set) { sets.push(iv.to); const [x, y] = pt(iv.to, 254); el("circle", { cx: x, cy: y, r: 4, class: "moon-dot" }, g); }
+    });
+    if (transit !== null) { const [x, y] = pt(transit, 254); moonGlyph(g, x, y, m.elong, loc.lat < 0); }
+    const fmt = list => list.length ? list.map(f => `${fracToOat(f)} (${oatToLocal(day + f)} local)`).join(", ") : "none this OAT day";
+    $("moonrise").textContent = fmt(rises);
+    $("moonset").textContent = fmt(sets);
+
+    $("moonNext").replaceChildren(...upcomingPhases(t, 4).map(p => {
+      const div = document.createElement("div");
+      const d = Math.floor(p.at), f = p.at - d;
+      div.textContent = `${p.name} · Day ${d.toString(8)} · ${fracToOat(f)} (${oatToLocal(p.at)} local)`;
+      return div;
+    }));
+  }
+
+  moonToggle.addEventListener("change", () => {
+    try { localStorage.setItem("oat-moon", moonToggle.checked ? "on" : "off"); } catch (e) {}
+    drawMoon();
+  });
+  drawMoon();
+  setInterval(drawMoon, 60000);
+
+  function render() {
+    const now = new Date();
+    const t = now.getTime() - EPOCH;
+
+    const day = Math.floor(t / DAY_MS);
+    const frac = (t - day * DAY_MS) / DAY_MS;      // 0..1 through the day
+    const totalMoments = frac * 4096;
+    const tick = Math.floor(frac * 64);
+    const momentFloat = totalMoments - tick * 64;   // 0..64 within the tick
+    const moment = Math.floor(momentFloat);
+    const subMoment = momentFloat - moment;         // 0..1 within the moment
+
+    $("day").textContent = day.toString(8);
+    $("tick").textContent = oct(tick);
+    $("moment").textContent = oct(moment);
+    $("compact").textContent = `${day.toString(8)}.${oct(tick)}${oct(moment)}`;
+
+    handTick.setAttribute("transform", `rotate(${frac * 360})`);
+    handMoment.setAttribute("transform", `rotate(${momentFloat / 64 * 360})`);
+    progress.setAttribute("d", subMoment > 0.002 ? arc(0, Math.min(subMoment, 0.9999), 118) : "");
+
+    // The phase follows your own rhythm, not the dial quarters
+    const ci = segments.findIndex(s => wrap(frac - s.from) < s.len);
+    const c = segments[ci];
+    if (c) {
+      $("phaseName").textContent = `${c.name} · until ${fracToOatShort(c.from + c.len)}`;
+      $("phaseSwatch").style.background = `var(${c.color})`;
+    }
+    [...$("legend").children].forEach((tr, i) => tr.classList.toggle("now", i === ci));
+
+    $("conv").textContent = now.toISOString().slice(0, 19).replace("T", " ");
+    const tzName = Intl.DateTimeFormat().resolvedOptions().timeZone || "local";
+    $("convLocal").textContent =
+      `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())} ` +
+      `${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())} (${tzName})`;
+    $("dayDec").textContent = day.toLocaleString("en-US");
+    $("tmDec").textContent = `${tick} · ${moment}`;
+    const secsLeft = Math.ceil((64 - momentFloat) * 86400 / 4096);
+    $("nextTick").textContent = `${Math.floor(secsLeft / 60)}m ${pad(secsLeft % 60)}s`;
+
+    requestAnimationFrame(render);
+  }
+  render();
+})();
+</script>
+</body>
+</html>
